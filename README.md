@@ -14,7 +14,7 @@
 
 ## 初始化与启动
 
-先执行 python -m app.cli init-db 和 python -m app.cli check-db，再用 uvicorn app.main:app --host 0.0.0.0 --port 8432 启动。健康检查为 GET /api/system/health。殡葬业务接口位于 /api/mortuary，涵盖档案、交接、资源、预约、服务订单、墓位权属、账单和时间线。
+先执行 python -m app.cli init-db 和 python -m app.cli check-db，再用 uvicorn app.main:app --host 0.0.0.0 --port 8432 启动。健康检查为 GET /api/system/health。殡葬业务接口位于 /api/mortuary，涵盖档案、交接、资源、预约、服务订单、墓位权属、账单和时间线。可复算排放批次接口位于 /api/emissions，涵盖火化炉与校准规则版本、燃料读数、净化状态、炉次运行、设备故障标记、按月版本化报表、更正版差异和监管导出，设计说明见 docs/emissions.md。
 
 ## 测试与编译检查
 
@@ -22,11 +22,12 @@
 
 编译命令：python -m compileall -q app tests
 
-API 与 CLI 冒烟命令：python -m app.cli smoke、python -m app.cli mortuary-demo
+API 与 CLI 冒烟命令：python -m app.cli smoke、python -m app.cli mortuary-demo、python -m app.cli emissions-demo
 
 ## 目录结构
 
 - app/mortuary：档案、保管交接、资源排程、权属和账单领域
+- app/emissions：排放批次月结、版本化报表、固定时钟重放与撤销影响清单
 - app/api：登录、角色、审计及系统管理接口
 - app/core：时钟、安全、异常、隐私与分页能力
 - app/repositories：通用身份和审计数据访问

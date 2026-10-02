@@ -95,6 +95,39 @@ def command_mortuary_demo() -> int:
     return 0 if case.status_code in {201, 409} and resource.status_code in {201, 409} and cases.status_code == 200 and resources.status_code == 200 else 1
 
 
+def command_emissions_demo() -> int:
+    with TestClient(app) as client:
+        rule = client.post("/api/emissions/calibration-rules?actor=cli-env", json={
+            "code": "CLI-RULE", "name": "CLI演示系数", "fuel_factor": 2.0,
+            "purifier_uplift": 0.5, "meter_tolerance": 180,
+            "valid_from": "2026-01-01T00:00:00Z"})
+        cremator = client.post("/api/emissions/cremators?actor=cli-device", json={
+            "code": "CLI-CR", "name": "CLI演示火化炉", "site_code": "CLI-SITE", "meter_code": "CLI-M"})
+        client.post("/api/emissions/purifier-states", json={
+            "cremator_code": "CLI-CR", "start_at": "2026-09-10T00:00:00Z", "end_at": None,
+            "state": "normal", "idempotency_key": "cli-purifier-01"})
+        client.post("/api/emissions/fuel-readings", json={
+            "meter_code": "CLI-M", "read_at": "2026-09-10T09:50:00Z", "reading": 100.0,
+            "idempotency_key": "cli-reading-01"})
+        client.post("/api/emissions/fuel-readings", json={
+            "meter_code": "CLI-M", "read_at": "2026-09-10T12:10:00Z", "reading": 130.0,
+            "idempotency_key": "cli-reading-02"})
+        client.post("/api/emissions/runs", json={
+            "cremator_code": "CLI-CR", "case_ref": "CLI-CASE-EM-01",
+            "actual_start_at": "2026-09-10T10:00:00Z", "actual_end_at": "2026-09-10T12:00:00Z",
+            "idempotency_key": "cli-run-000001"})
+        report = client.post(
+            "/api/emissions/reports/compute?period_month=2026-09&rule_code=CLI-RULE&created_by=cli-mgr")
+        export = client.get(f"/api/emissions/reports/{report.json().get('id')}/export")
+    ok = (rule.status_code in {201, 409} and cremator.status_code in {201, 409}
+          and report.status_code == 201 and export.status_code == 200)
+    result = {"rule": rule.status_code, "cremator": cremator.status_code,
+              "report": report.status_code, "export": export.status_code,
+              "totals": report.json().get("totals") if report.status_code == 201 else None}
+    print(json.dumps(result, ensure_ascii=False))
+    return 0 if ok else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="peaceful-care-operations", description="安宁礼仪与公墓运营服务维护入口")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -103,8 +136,16 @@ def main() -> int:
     subparsers.add_parser("smoke", help="执行本地 API 冒烟检查")
     subparsers.add_parser("compute-demo", help="执行计算任务提交与领取演示")
     subparsers.add_parser("mortuary-demo", help="执行殡葬业务 API 冒烟检查")
+    subparsers.add_parser("emissions-demo", help="执行排放批次月结与监管导出冒烟检查")
     args = parser.parse_args()
-    return {"init-db": command_init, "check-db": command_check, "smoke": command_smoke, "compute-demo": command_compute_demo, "mortuary-demo": command_mortuary_demo}[args.command]()
+    return {
+        "init-db": command_init,
+        "check-db": command_check,
+        "smoke": command_smoke,
+        "compute-demo": command_compute_demo,
+        "mortuary-demo": command_mortuary_demo,
+        "emissions-demo": command_emissions_demo,
+    }[args.command]()
 
 
 if __name__ == "__main__":
